@@ -1,4 +1,4 @@
-module github.com/jdeng/goheif
+module github.com/golubaca/goheif
 
 go 1.22.3
 
