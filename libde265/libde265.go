@@ -11,6 +11,7 @@ package libde265
 import "C"
 
 import (
+	"errors"
 	"fmt"
 	"image"
 	"unsafe"
@@ -33,7 +34,7 @@ func Fini() {
 func NewDecoder(opts ...Option) (*Decoder, error) {
 	p := C.de265_new_decoder()
 	if p == nil {
-		return nil, fmt.Errorf("Unable to create decoder")
+		return nil, errors.New("unable to create decoder")
 	}
 
 	dec := &Decoder{ctx: p, hasImage: false}
@@ -71,14 +72,14 @@ func (dec *Decoder) Push(data []byte) error {
 	totalSize := len(data)
 	for pos < totalSize {
 		if pos+4 > totalSize {
-			return fmt.Errorf("Invalid NAL data")
+			return errors.New("invalid NAL data")
 		}
 
 		nalSize := uint32(data[pos])<<24 | uint32(data[pos+1])<<16 | uint32(data[pos+2])<<8 | uint32(data[pos+3])
 		pos += 4
 
 		if pos+int(nalSize) > totalSize {
-			return fmt.Errorf("Invalid NAL size: %d", nalSize)
+			return fmt.Errorf("invalid NAL size: %d", nalSize)
 		}
 
 		C.de265_push_NAL(dec.ctx, unsafe.Pointer(&data[pos]), C.int(nalSize), C.de265_PTS(0), nil)
@@ -100,13 +101,13 @@ func (dec *Decoder) DecodeImage(data []byte) (image.Image, error) {
 	}
 
 	if ret := C.de265_flush_data(dec.ctx); ret != C.DE265_OK {
-		return nil, fmt.Errorf("flush_data error")
+		return nil, fmt.Errorf("flush_data error: %d", ret)
 	}
 
 	var more C.int = 1
 	for more != 0 {
 		if decerr := C.de265_decode(dec.ctx, &more); decerr != C.DE265_OK {
-			return nil, fmt.Errorf("decode error")
+			return nil, fmt.Errorf("decode error: %d", decerr)
 		}
 
 		for {
@@ -166,5 +167,5 @@ func (dec *Decoder) DecodeImage(data []byte) (image.Image, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("No picture")
+	return nil, errors.New("no picture")
 }
